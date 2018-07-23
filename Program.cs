@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Windows.Input;
 
 namespace CardGame
 {
     class Program
     {
+        [STAThread]
         static void Main(string[] args)
         {
             new Battle();
@@ -14,21 +17,57 @@ namespace CardGame
 
     class Battle{
 
-        public Player User;
-        public Player Opponent;
+        private Player playerOne;
+        private Player playerTwo;
+        private Player currentPlayer;
 
-        public int Turn = 1;
+        public int turnNumber = 1;
+        public Boolean turnEnded = false;
 
         public Battle()
         {
-            this.User = new Player("Evil Derek", "Evil man");
-            this.Opponent = new Player("Derek", "Dudesmith");
+            this.playerOne = new Player("Evil Derek", HeroType.Mage);
+            this.playerTwo = new Player("Derek", HeroType.Mage);
+            this.currentPlayer = this.playerOne;
+            this.currentPlayer.DrawCard();
 
-            this.User.PrintStats();
-            this.Opponent.PrintStats();
+            this.playerOne.PrintStats();
+            this.playerTwo.PrintStats();
+
+            while (!this.IsMatchOver())
+            {
+                if (this.currentPlayer.CheckForAction())
+                {
+                    Thread.Sleep(1000);
+                    if (this.currentPlayer.Equals(playerOne))
+                    {
+                        this.currentPlayer = this.playerTwo;
+                    }
+                    else
+                    {
+                        this.currentPlayer = this.playerOne;
+                    }
+                    this.currentPlayer.DrawCard();
+                }
+            }
         }
 
+        public Boolean IsMatchOver()
+        {
+            if(playerOne.health <= 0)
+            {
+                Console.WriteLine(playerTwo.name + " WINS!");
+                return true;
+            }
+            else if (playerTwo.health <= 0)
+            {
+                Console.WriteLine(playerOne.name + " WINS!");
+                return true;
+            }
+            return false;
+        }
     }
+    public enum HeroType { Mage };
 
     public class Player
     {
@@ -37,14 +76,14 @@ namespace CardGame
         public List<Card> cardsInHand = new List<Card>();
 
         public String name = "Dog";
-        public String heroType = "Mage";
+        public HeroType heroType;
 
         public int health = 30;
         public int currentMana = 1;
         public int maxMana = 10;
         public int maxHandSize = 10;
 
-        public Player(String name, String heroType)
+        public Player(String name, HeroType heroType)
         {
             this.name = name;
             this.heroType = heroType;
@@ -53,9 +92,11 @@ namespace CardGame
 
         public void InitDeck()
         {
-            Card c = new Card();
-            c.name = "John";
-            c.description = "A fun dude";
+            Card c = new Card
+            {
+                name = "John",
+                description = "A fun dude"
+            };
             cardsInDeck.Add(c);
 
             for (int i = 0; i < 10; i++)
@@ -89,6 +130,44 @@ namespace CardGame
                 Console.WriteLine("Burned Card: " + this.cardsInDeck[0]);
             }
             this.cardsInDeck.RemoveAt(0);
+        }
+
+        public Boolean CheckForAction()
+        {
+            if (Keyboard.IsKeyDown(Key.A))
+            {
+                this.PlayCard(0);
+                Thread.Sleep(1000);
+            }
+            else if (Keyboard.IsKeyDown(Key.S))
+            {
+                Console.WriteLine("Ending Turn!");
+                return true;
+            }
+            return false;
+        }
+
+        public void PlayCard(int index)
+        {
+            foreach (var Card in this.cardsInHand)
+            {
+                Card.PrintStats();
+            }
+            Card card = this.cardsInHand[index];
+            if (card.manaCost <= this.currentMana)
+            {
+                if (card is MonsterCard)
+                {
+                    this.cardsOnField.Add((MonsterCard) card);
+                    Console.WriteLine("Played Card: " + card.name);
+                }
+                card.Action();
+                this.cardsInHand.Remove(card);
+            }
+            else
+            {
+                Console.WriteLine("Not enough mana!");
+            }
         }
 
         public void PrintStats()
